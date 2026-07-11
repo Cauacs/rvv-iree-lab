@@ -7,6 +7,11 @@ REMOTE_SUBDIR="${REMOTE_SUBDIR:-src/rvv-iree-lab}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 JOBS="${JOBS:-2}"
 
+SSH_OPTIONS=(
+    -o BatchMode=yes
+    -o ConnectTimeout=10
+)
+
 die()
 {
     printf 'error: %s\n' "$*" >&2
@@ -66,7 +71,15 @@ printf 'Build type: %s\n' "$BUILD_TYPE"
 printf 'Jobs:       %s\n' "$JOBS"
 printf '\n'
 
-ssh "$BOARD_HOST" bash -s -- \
+printf 'Checking non-interactive SSH access...\n'
+
+if ! ssh "${SSH_OPTIONS[@]}" "$BOARD_HOST" true; then
+    die "cannot access $BOARD_HOST without interaction; configure SSH public-key authentication first"
+fi
+
+printf 'SSH access succeeded.\n\n'
+
+ssh "${SSH_OPTIONS[@]}" "$BOARD_HOST" bash -s -- \
     "$REPOSITORY_URL" \
     "$COMMIT_SHA" \
     "$REMOTE_SUBDIR" \
