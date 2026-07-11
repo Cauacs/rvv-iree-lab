@@ -1,0 +1,116 @@
+name: Orange Pi RV2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orange-pi-rv2
+  cancel-in-progress: false
+
+jobs:
+  validate-main-on-board:
+    name: Validate main on Orange Pi RV2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    environment:
+      name: orange-pi-rv2
+
+    if: >-
+      github.repository == 'Cauacs/rvv-iree-lab' &&
+      github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Check out trusted main commit
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Validate checked-out commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${GITHUB_REPOSITORY}" = "Cauacs/rvv-iree-lab"
+
+          git merge-base --is-ancestor \
+            "${GITHUB_SHA}" \
+            "origin/main"
+
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:github-actions-rvv
+
+      - name: Configure board SSH identity
+        shell: bash
+        env:
+          BOARD_CI_SSH_KEY: ${{ secrets.BOARD_CI_SSH_KEY }}
+          BOARD_SSH_KNOWN_HOSTS: ${{ secrets.BOARD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+
+          install \
+            --directory \
+            --mode=0700 \
+            "${HOME}/.ssh"
+
+          printf '%s\n' "${BOARD_CI_SSH_KEY}" \
+            > "${HOME}/.ssh/board_ci"
+
+          chmod 0600 "${HOME}/.ssh/board_ci"
+
+          printf '%s\n' "${BOARD_SSH_KNOWN_HOSTS}" \
+            > "${HOME}/.ssh/known_hosts"
+
+          chmod 0600 "${HOME}/.ssh/known_hosts"
+
+      - name: Check board connectivity
+        shell: bash
+        env:
+          BOARD_HOST: ${{ vars.BOARD_HOST }}
+          BOARD_USER: ${{ vars.BOARD_USER }}
+        run: |
+          set -Eeuo pipefail
+
+          ssh \
+            -i "${HOME}/.ssh/board_ci" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${BOARD_USER}@${BOARD_HOST}" \
+            'test "$(uname -m)" = riscv64'
+
+      - name: Build and test exact commit on board
+        shell: bash
+        env:
+          BOARD_HOST: ${{ vars.BOARD_HOST }}
+          BOARD_USER: ${{ vars.BOARD_USER }}
+          BOARD_REPOSITORY_URL: ${{ vars.BOARD_REPOSITORY_URL }}
+        run: |
+          set -Eeuo pipefail
+
+          ssh \
+            -i "${HOME}/.ssh/board_ci" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${BOARD_USER}@${BOARD_HOST}" \
+            "bash -s -- '${BOARD_REPOSITORY_URL}' '${GITHUB_SHA}'" \
+            < scripts/remote-board-validate.sh
+
+      - name: Remove temporary SSH material
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            "${HOME}/.ssh/board_ci" \
+            "${HOME}/.ssh/known_hosts"

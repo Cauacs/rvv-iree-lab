@@ -114,3 +114,31 @@ Never commit the private key or copy it into the repository.
 ```sh
 ./scripts/board-test.sh
 ```
+
+## Manual GitHub board validation
+
+Native Orange Pi validation can be started manually from GitHub Actions.
+
+The workflow:
+
+1. Requires the `orange-pi-rv2` GitHub Environment.
+2. Can run only from `main`.
+3. Uses a temporary Tailscale node tagged `tag:github-actions-rvv`.
+4. Connects using a dedicated CI-only SSH key.
+5. Runs as the unprivileged `rvvci` board user.
+6. Checks that the selected commit belongs to `origin/main`.
+7. Builds and tests that exact commit natively on RISC-V.
+
+Run it with:
+
+```sh
+gh workflow run board.yml --ref main
+```
+
+Then inspect it with:
+
+```sh
+gh run list --workflow board.yml --limit 5
+```
+
+This workflow must never be enabled for public pull-request events.
