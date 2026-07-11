@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-BOARD_HOST="${BOARD_HOST:-rv2}"
+BOARD_HOST="${BOARD_HOST:-orangepi-rv2}"
 REMOTE_SUBDIR="${REMOTE_SUBDIR:-src/rvv-iree-lab}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 JOBS="${JOBS:-2}"
@@ -43,15 +43,20 @@ fi
 
 case "$ORIGIN_URL" in
     git@github.com:*)
-        REPOSITORY_URL="https://github.com/${ORIGIN_URL#git@github.com:}"
+        REPOSITORY_PATH="${ORIGIN_URL#git@github.com:}"
+        ;;
+    git@github-personal:*)
+        REPOSITORY_PATH="${ORIGIN_URL#git@github-personal:}"
         ;;
     https://github.com/*)
-        REPOSITORY_URL="$ORIGIN_URL"
+        REPOSITORY_PATH="${ORIGIN_URL#https://github.com/}"
         ;;
     *)
         die "unsupported origin URL: $ORIGIN_URL"
         ;;
 esac
+
+REPOSITORY_URL="https://github.com/${REPOSITORY_PATH}"
 
 printf '\n'
 printf 'Board:      %s\n' "$BOARD_HOST"
