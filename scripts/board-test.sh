@@ -96,7 +96,25 @@ JOBS="$5"
 REMOTE_DIR="$HOME/$REMOTE_SUBDIR"
 BUILD_DIR="$REMOTE_DIR/build/board"
 
-for command in git cmake ninja cc file; do
+remote_die()
+{
+    printf 'error: %s\n' "$*" >&2
+    exit 1
+}
+
+require_disassembly_mnemonic()
+{
+    local mnemonic="$1"
+    local pattern="$2"
+    local disassembly_path="$3"
+
+    grep -Eq \
+        "[[:space:]]${pattern}[[:space:]]" \
+        "$disassembly_path" ||
+        remote_die "RVV disassembly is missing $mnemonic"
+}
+
+for command in git cmake ninja cc ctest file grep objdump; do
     command -v "$command" >/dev/null 2>&1 || {
         printf 'error: missing board command: %s\n' "$command" >&2
         exit 1
@@ -123,12 +141,19 @@ git checkout --detach "$COMMIT_SHA"
 git reset --hard "$COMMIT_SHA"
 git clean -fdx
 
+printf '\nCollecting RISC-V vector capabilities...\n'
+scripts/rvv/collect_capabilities.sh
+
+printf '\nProbing RISC-V vector compiler flags...\n'
+scripts/rvv/probe_compiler_flags.sh
+
 printf '\nConfiguring native RISC-V build...\n'
 cmake \
     -S . \
     -B "$BUILD_DIR" \
     -G Ninja \
-    -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    -DENABLE_RVV_EXPERIMENTS=ON
 
 printf '\nBuilding on Orange Pi...\n'
 cmake \
@@ -145,6 +170,51 @@ printf '\nRunning executable...\n'
 
 printf '\nExecutable information:\n'
 file "$BUILD_DIR/arch-info"
+
+printf '\nRunning RVV executable...\n'
+"$BUILD_DIR/rvv_vector_add"
+
+printf '\nRVV executable information:\n'
+RVV_FILE_INFORMATION="$(file "$BUILD_DIR/rvv_vector_add")"
+printf '%s\n' "$RVV_FILE_INFORMATION"
+
+case "$RVV_FILE_INFORMATION" in
+    *"ELF 64-bit LSB"*"UCB RISC-V"*)
+        ;;
+    *)
+        remote_die \
+            "rvv_vector_add is not a 64-bit RISC-V ELF executable"
+        ;;
+esac
+
+RVV_DISASSEMBLY="$BUILD_DIR/rvv_vector_add.disasm"
+
+objdump \
+    -d \
+    "$BUILD_DIR/rvv_vector_add" \
+    > "$RVV_DISASSEMBLY"
+
+require_disassembly_mnemonic \
+    vsetvli \
+    vsetvli \
+    "$RVV_DISASSEMBLY"
+require_disassembly_mnemonic \
+    vle32.v \
+    'vle32\.v' \
+    "$RVV_DISASSEMBLY"
+require_disassembly_mnemonic \
+    vadd.vv \
+    'vadd\.vv' \
+    "$RVV_DISASSEMBLY"
+require_disassembly_mnemonic \
+    vse32.v \
+    'vse32\.v' \
+    "$RVV_DISASSEMBLY"
+
+printf '\nRVV disassembly evidence:\n'
+grep -E \
+    '[[:space:]](vsetvli|vle32\.v|vadd\.vv|vse32\.v)[[:space:]]' \
+    "$RVV_DISASSEMBLY"
 
 printf '\nBoard validation passed for commit %s\n' "$COMMIT_SHA"
 REMOTE_SCRIPT

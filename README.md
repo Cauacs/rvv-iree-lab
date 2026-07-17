@@ -115,6 +115,44 @@ Never commit the private key or copy it into the repository.
 ./scripts/board-test.sh
 ```
 
+## RVV hardware validation
+
+The normal local build and `.github/workflows/ci.yml` remain host-only and do
+not compile or execute RVV code. Native capability, compiler, and runtime
+evidence is recorded in
+[`docs/rvv/hardware-validation.md`](docs/rvv/hardware-validation.md).
+
+On the Orange Pi RV2, collect the raw capability report and run the staged
+compiler probe with:
+
+```sh
+./scripts/rvv/collect_capabilities.sh
+./scripts/rvv/probe_compiler_flags.sh
+```
+
+Configure and test the opt-in native RVV target with:
+
+```sh
+cmake -S . -B build/board -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_RVV_EXPERIMENTS=ON
+
+cmake --build build/board --parallel 2
+ctest --test-dir build/board --output-on-failure
+./build/board/rvv_vector_add
+```
+
+The existing developer entry point performs the capability collection,
+compiler matrix, RVV-enabled build and tests, RISC-V ELF check, direct runtime
+validation, and RVV disassembly assertions:
+
+```sh
+./scripts/board-test.sh
+```
+
+`board-test.sh` intentionally requires a clean commit that has already been
+pushed to the configured origin.
+
 ## Manual GitHub board validation
 
 Native Orange Pi validation can be started manually from GitHub Actions.
