@@ -1,11 +1,11 @@
 # Orange Pi RV2 RVV hardware validation
 
-Validation was performed on 2026-07-17 against source commit
-`26d226de8e7fa0dde332738d9da5587dbb11141b`. The current
-`scripts/remote-board-validate.sh` implementation was streamed over SSH, used a
-temporary checkout and build directory, and removed both after completion. The
-validator ran the capability collector, compiler matrix, RVV-enabled CMake
-build, CTest, direct executable check, ELF check, and disassembly assertions.
+Validation was performed on 2026-07-17 against clean, pushed source commit
+`b3c3a86d69cc9e85fb7f15eab4f661553384c79c` through
+`./scripts/board-test.sh`. The workflow fetched and checked out that exact
+commit on the board, cleaned the build tree, and ran the capability collector,
+compiler matrix, RVV-enabled CMake build, CTest, direct executable check, ELF
+check, and disassembly assertions.
 
 ## Board and operating system
 
@@ -175,6 +175,6 @@ SEW=32, LMUL=1 on this board and kernel.
 No inspected kernel or device-tree source names the X60 hardware's RVV
 revision. GCC's `__riscv_v=1000000` records the compiler target as V 1.0, not an
 independent hardware-version declaration; this document therefore does not
-claim a specific X60 RVV revision. After the validator changes are committed
-and pushed, `./scripts/board-test.sh` should be run once from that clean commit
-to reproduce the evidence through the exact-commit developer workflow.
+claim a specific X60 RVV revision. The exact-commit developer workflow
+completed successfully for commit
+`b3c3a86d69cc9e85fb7f15eab4f661553384c79c`.
