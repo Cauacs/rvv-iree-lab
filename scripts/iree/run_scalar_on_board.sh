@@ -37,18 +37,18 @@ SSH_OPTIONS=(
     -o ConnectTimeout=10
 )
 
-CONFIG_FILE="phase2/config/iree.env"
-TENSOR_SOURCE="phase2/mlir/tensor_add.mlir"
-DEPS_DIR="build/phase2/deps"
-HOST_MARKER="$DEPS_DIR/iree-host/.phase2-dependency"
-TOOLCHAIN_MARKER="$DEPS_DIR/riscv-toolchain/.phase2-dependency"
-SCALAR_VMFB="build/phase2/scalar/tensor_add.vmfb"
+CONFIG_FILE="scripts/iree/iree.env"
+TENSOR_SOURCE="src/iree/tensor_add.mlir"
+DEPS_DIR="build/iree/deps"
+HOST_MARKER="$DEPS_DIR/iree-host/.iree-dependency"
+TOOLCHAIN_MARKER="$DEPS_DIR/riscv-toolchain/.iree-dependency"
+SCALAR_VMFB="build/iree/scalar/tensor_add.vmfb"
 SCALAR_SIDECAR="$SCALAR_VMFB.sha256"
-COMPILE_MANIFEST="build/phase2/compile-manifest.txt"
-TOOLCHAIN_VERSIONS="build/phase2/toolchain-versions.txt"
+COMPILE_MANIFEST="build/iree/compile-manifest.txt"
+TOOLCHAIN_VERSIONS="build/iree/toolchain-versions.txt"
 
 [[ -f "$CONFIG_FILE" ]] || die "missing configuration: $CONFIG_FILE"
-# shellcheck source=../config/iree.env
+# shellcheck source=iree.env
 . "$CONFIG_FILE"
 
 required_config_keys=(
@@ -65,14 +65,14 @@ done
 
 case "$RUNTIME_LINKAGE" in
     dynamic)
-        BUILD_DIR="build/phase2/runtime-riscv64"
-        RUNTIME_MANIFEST="build/phase2/runtime-manifest.txt"
-        BOARD_LOG="build/phase2/board-run-dynamic.txt"
+        BUILD_DIR="build/iree/runtime-riscv64"
+        RUNTIME_MANIFEST="build/iree/runtime-manifest.txt"
+        BOARD_LOG="build/iree/board-run-dynamic.txt"
         ;;
     static)
-        BUILD_DIR="build/phase2/runtime-riscv64-static"
-        RUNTIME_MANIFEST="build/phase2/runtime-manifest-static.txt"
-        BOARD_LOG="build/phase2/board-run-static.txt"
+        BUILD_DIR="build/iree/runtime-riscv64-static"
+        RUNTIME_MANIFEST="build/iree/runtime-manifest-static.txt"
+        BOARD_LOG="build/iree/board-run-static.txt"
         ;;
     *)
         die "RUNTIME_LINKAGE must be dynamic or static, got: $RUNTIME_LINKAGE"
@@ -217,7 +217,7 @@ mapfile -t runner_sidecar_lines < "$RUNNER_SIDECAR"
 
 if [[ -n "$(git status --porcelain)" ]]; then
     git status --short
-    die "the working tree is not clean; review, commit, and push Phase 2 first"
+    die "the working tree is not clean; review, commit, and push IREE artifacts first"
 fi
 
 printf 'Checking origin for current commit...\n'
@@ -237,12 +237,12 @@ printf 'VMFB SHA-256:     %s\n' "$SCALAR_VMFB_SHA256"
 remote_output=''
 set +e
 remote_output="$(ssh "${SSH_OPTIONS[@]}" "$BOARD_HOST" \
-    'mktemp -d /tmp/rvv-iree-lab-phase2.XXXXXX' 2>&1)"
+    'mktemp -d /tmp/rvv-iree-lab-iree.XXXXXX' 2>&1)"
 remote_status="$?"
 set -e
 [[ "$remote_status" -eq 0 ]] || die "remote mktemp failed: $remote_output"
 [[ "$remote_output" != *$'\n'* \
-        && "$remote_output" =~ ^/tmp/rvv-iree-lab-phase2\.[A-Za-z0-9]+$ ]] ||
+        && "$remote_output" =~ ^/tmp/rvv-iree-lab-iree\.[A-Za-z0-9]+$ ]] ||
     die "remote mktemp returned an unsafe or malformed path: $remote_output"
 REMOTE_DIR="$remote_output"
 
@@ -255,7 +255,7 @@ cleanup_remote()
 set -Eeuo pipefail
 remote_dir="$1"
 case "$remote_dir" in
-    /tmp/rvv-iree-lab-phase2.*) ;;
+    /tmp/rvv-iree-lab-iree.*) ;;
     *) exit 2 ;;
 esac
 rm -rf -- "$remote_dir"

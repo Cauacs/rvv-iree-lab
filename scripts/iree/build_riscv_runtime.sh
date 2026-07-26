@@ -30,14 +30,14 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" ||
     die "run this command from inside the Git repository"
 cd "$REPO_ROOT"
 
-CONFIG_FILE="phase2/config/iree.env"
-TENSOR_SOURCE="phase2/mlir/tensor_add.mlir"
-DEPS_DIR="build/phase2/deps"
+CONFIG_FILE="scripts/iree/iree.env"
+TENSOR_SOURCE="src/iree/tensor_add.mlir"
+DEPS_DIR="build/iree/deps"
 HOST_DIR="$DEPS_DIR/iree-host"
 TOOLCHAIN_DIR="$DEPS_DIR/riscv-toolchain"
 SOURCE_DIR="$DEPS_DIR/iree-src"
-HOST_MARKER="$HOST_DIR/.phase2-dependency"
-TOOLCHAIN_MARKER="$TOOLCHAIN_DIR/.phase2-dependency"
+HOST_MARKER="$HOST_DIR/.iree-dependency"
+TOOLCHAIN_MARKER="$TOOLCHAIN_DIR/.iree-dependency"
 IREE_COMPILE="$HOST_DIR/bin/iree-compile"
 IREE_RUN_MODULE_HOST="$HOST_DIR/bin/iree-run-module"
 IREE_DUMP_MODULE="$HOST_DIR/bin/iree-dump-module"
@@ -48,12 +48,12 @@ RV_SYSROOT="$TOOLCHAIN_DIR/sysroot"
 TOOLCHAIN_FILE="$SOURCE_DIR/build_tools/cmake/linux_riscv64.cmake"
 RUNTIME_SUBMODULES_FILE="$SOURCE_DIR/build_tools/scripts/git/runtime_submodules.txt"
 SUBMODULE_CHECKER="$SOURCE_DIR/build_tools/scripts/git/check_submodule_init.py"
-SCALAR_VMFB="build/phase2/scalar/tensor_add.vmfb"
+SCALAR_VMFB="build/iree/scalar/tensor_add.vmfb"
 SCALAR_SIDECAR="$SCALAR_VMFB.sha256"
-COMPILE_MANIFEST="build/phase2/compile-manifest.txt"
+COMPILE_MANIFEST="build/iree/compile-manifest.txt"
 
 [[ -f "$CONFIG_FILE" ]] || die "missing configuration: $CONFIG_FILE"
-# shellcheck source=../config/iree.env
+# shellcheck source=iree.env
 . "$CONFIG_FILE"
 
 required_config_keys=(
@@ -87,14 +87,14 @@ JOBS="${JOBS:-2}"
 
 case "$RUNTIME_LINKAGE" in
     dynamic)
-        BUILD_DIR="build/phase2/runtime-riscv64"
-        RUNTIME_MANIFEST="build/phase2/runtime-manifest.txt"
-        RESOURCE_REPORT="build/phase2/resource-usage.txt"
+        BUILD_DIR="build/iree/runtime-riscv64"
+        RUNTIME_MANIFEST="build/iree/runtime-manifest.txt"
+        RESOURCE_REPORT="build/iree/resource-usage.txt"
         ;;
     static)
-        BUILD_DIR="build/phase2/runtime-riscv64-static"
-        RUNTIME_MANIFEST="build/phase2/runtime-manifest-static.txt"
-        RESOURCE_REPORT="build/phase2/resource-usage-static.txt"
+        BUILD_DIR="build/iree/runtime-riscv64-static"
+        RUNTIME_MANIFEST="build/iree/runtime-manifest-static.txt"
+        RESOURCE_REPORT="build/iree/resource-usage-static.txt"
         ;;
     *)
         die "RUNTIME_LINKAGE must be dynamic or static, got: $RUNTIME_LINKAGE"
@@ -161,7 +161,7 @@ done < "$RUNTIME_SUBMODULES_FILE"
 
 [[ -f "$TENSOR_SOURCE" ]] || die "missing tensor source: $TENSOR_SOURCE"
 [[ -s "$SCALAR_VMFB" ]] ||
-    die "missing scalar VMFB: $SCALAR_VMFB; run ./phase2/scripts/compile_tensor_add.sh first"
+    die "missing scalar VMFB: $SCALAR_VMFB; run ./scripts/iree/compile_tensor_add.sh first"
 [[ -f "$SCALAR_SIDECAR" ]] || die "missing scalar VMFB sidecar: $SCALAR_SIDECAR"
 [[ -f "$COMPILE_MANIFEST" ]] || die "missing compile manifest: $COMPILE_MANIFEST"
 

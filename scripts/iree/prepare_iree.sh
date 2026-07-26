@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# Prepare Phase 2's pinned IREE toolchain under build/phase2/deps/ without
-# modifying the working tree outside build/. Produces:
+# Prepare the pinned IREE toolchain under build/iree/deps/ without modifying
+# the working tree outside build/. Produces:
 #
-#   build/phase2/deps/downloads/<archives>            verified downloaded archives
-#   build/phase2/deps/iree-host/                      pin-verified host distribution
-#   build/phase2/deps/riscv-toolchain/                pin-verified RISC-V Clang sysroot
-#   build/phase2/deps/iree-src/                       runtime-only IREE source at IREE_REVISION
-#   build/phase2/deps/iree-source-version.txt         all top-level submodule gitlinks
-#   build/phase2/toolchain-versions.txt               host/target toolchain version dump
+#   build/iree/deps/downloads/<archives>            verified downloaded archives
+#   build/iree/deps/iree-host/                      pin-verified host distribution
+#   build/iree/deps/riscv-toolchain/                pin-verified RISC-V Clang sysroot
+#   build/iree/deps/iree-src/                       runtime-only IREE source at IREE_REVISION
+#   build/iree/deps/iree-source-version.txt         all top-level submodule gitlinks
+#   build/iree/toolchain-versions.txt               host/target toolchain version dump
 #
-# Authoritative values come only from phase2/config/iree.env. Reuse of a final
-# directory is permitted only when its .phase2-dependency marker and required
+# Authoritative values come only from scripts/iree/iree.env. Reuse of a final
+# directory is permitted only when its .iree-dependency marker and required
 # paths match the configuration; any missing or mismatched state is a hard error.
 
 set -Eeuo pipefail
@@ -20,7 +20,7 @@ usage()
 {
     printf 'Usage: prepare_iree.sh\n' >&2
     printf 'Environment:\n' >&2
-    printf '  (none; all values come from phase2/config/iree.env)\n' >&2
+    printf '  (none; all values come from scripts/iree/iree.env)\n' >&2
 }
 
 die()
@@ -49,21 +49,21 @@ for command_name in "${required_commands[@]}"; do
 done
 
 # Source only the approved configuration; nothing else.
-# shellcheck source=../config/iree.env
-. "$REPO_ROOT/phase2/config/iree.env"
+# shellcheck source=iree.env
+. "$REPO_ROOT/scripts/iree/iree.env"
 
-DEPS_DIR="$REPO_ROOT/build/phase2/deps"
+DEPS_DIR="$REPO_ROOT/build/iree/deps"
 DOWNLOADS_DIR="$DEPS_DIR/downloads"
 HOST_DIR="$DEPS_DIR/iree-host"
 TOOLCHAIN_DIR="$DEPS_DIR/riscv-toolchain"
 SOURCE_DIR="$DEPS_DIR/iree-src"
 SOURCE_VERSION_FILE="$DEPS_DIR/iree-source-version.txt"
-TOOLCHAIN_VERSIONS_FILE="$REPO_ROOT/build/phase2/toolchain-versions.txt"
+TOOLCHAIN_VERSIONS_FILE="$REPO_ROOT/build/iree/toolchain-versions.txt"
 
 mkdir -p "$DOWNLOADS_DIR"
 
 # ---------------------------------------------------------------------------
-# Download + verify a configured archive into build/phase2/deps/downloads/.
+# Download + verify a configured archive into build/iree/deps/downloads/.
 # A .part file is never trusted or resumed: a wrong hash is a hard error.
 # ---------------------------------------------------------------------------
 download_verified()
@@ -122,7 +122,7 @@ install_dep()
     shift 4
     local required_paths=("$@")
 
-    local marker="$final_dir/.phase2-dependency"
+    local marker="$final_dir/.iree-dependency"
 
     if [[ -e "$marker" ]]; then
         if [[ -f "$marker" ]]; then
@@ -142,9 +142,9 @@ install_dep()
                 fi
                 die "$final_dir marker matches but a required path is missing; rerun after removing $final_dir"
             fi
-            die "$final_dir has a mismatched .phase2-dependency marker; rerun after removing $final_dir"
+            die "$final_dir has a mismatched .iree-dependency marker; rerun after removing $final_dir"
         fi
-        die "$final_dir has a non-regular .phase2-dependency; rerun after removing $final_dir"
+        die "$final_dir has a non-regular .iree-dependency; rerun after removing $final_dir"
     fi
 
     if [[ -e "$final_dir" ]]; then
@@ -152,7 +152,7 @@ install_dep()
     fi
 
     printf 'install: publishing %s\n' "$final_dir"
-    printf 'archive=%s\nsha256=%s\n' "$archive" "$sha256" > "$staging_dir/.phase2-dependency"
+    printf 'archive=%s\nsha256=%s\n' "$archive" "$sha256" > "$staging_dir/.iree-dependency"
     mv -f "$staging_dir" "$final_dir"
 }
 
@@ -168,7 +168,7 @@ verify_present()
     local sha256="$3"
     shift 3
     local required_paths=("$@")
-    local marker="$final_dir/.phase2-dependency"
+    local marker="$final_dir/.iree-dependency"
 
     [[ -f "$marker" ]] || return 1
     local m_archive m_sha256
@@ -211,7 +211,7 @@ start_stage()
 # ---------------------------------------------------------------------------
 # 1. Host distribution: download, verify, extract, publish iree-host/.
 # ---------------------------------------------------------------------------
-printf '\n== phase2/prepare: host distribution ==\n'
+printf '\n== iree/prepare: host distribution ==\n'
 host_required=(bin/iree-compile bin/iree-run-module bin/iree-dump-module)
 if verify_present "$HOST_DIR" "$IREE_HOST_ARCHIVE" "$IREE_HOST_SHA256" \
         "${host_required[@]}"; then
@@ -235,7 +235,7 @@ IREE_DUMP_MODULE="$HOST_DIR/bin/iree-dump-module"
 # 2. RISC-V toolchain: download, verify, extract (--strip-components=1),
 #    publish riscv-toolchain/.
 # ---------------------------------------------------------------------------
-printf '\n== phase2/prepare: RISC-V toolchain ==\n'
+printf '\n== iree/prepare: RISC-V toolchain ==\n'
 toolchain_required=(bin/clang bin/clang++ bin/riscv64-unknown-linux-gnu-readelf sysroot)
 if verify_present "$TOOLCHAIN_DIR" "$RISCV_TOOLCHAIN_ARCHIVE" \
         "$RISCV_TOOLCHAIN_SHA256" "${toolchain_required[@]}"; then
@@ -266,7 +266,7 @@ RV_SYSROOT="$TOOLCHAIN_DIR/sysroot"
 #    runtime_submodules.txt paths, validate HEAD + submodule status, then
 #    atomically publish iree-src/.
 # ---------------------------------------------------------------------------
-printf '\n== phase2/prepare: IREE source (runtime only) ==\n'
+printf '\n== iree/prepare: IREE source (runtime only) ==\n'
 
 source_check_passed()
 {
@@ -348,9 +348,9 @@ fi
 # ---------------------------------------------------------------------------
 # 4. Toolchain/version dump + required-CLI-flag presence check.
 # ---------------------------------------------------------------------------
-printf '\n== phase2/prepare: versions and required flags ==\n'
+printf '\n== iree/prepare: versions and required flags ==\n'
 {
-    printf '# Generated by phase2/scripts/prepare_iree.sh\n'
+    printf '# Generated by scripts/iree/prepare_iree.sh\n'
     printf '## ctime: %s\n\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
     printf '## host uname\n%s\n\n' "$(uname -a)"
@@ -404,7 +404,7 @@ if [[ "${#missing_flags[@]}" -ne 0 ]]; then
     die "required CLI flags not found: ${missing_flags[*]}"
 fi
 
-printf '\n== phase2/prepare: done ==\n'
+printf '\n== iree/prepare: done ==\n'
 printf 'host=%s\n'      "$HOST_DIR"
 printf 'toolchain=%s\n' "$TOOLCHAIN_DIR"
 printf 'source=%s\n'    "$SOURCE_DIR"

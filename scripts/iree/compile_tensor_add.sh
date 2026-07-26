@@ -27,21 +27,21 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" ||
     die "run this command from inside the Git repository"
 cd "$REPO_ROOT"
 
-CONFIG_FILE="phase2/config/iree.env"
-SOURCE_FILE="phase2/mlir/tensor_add.mlir"
-HOST_DIR="build/phase2/deps/iree-host"
-HOST_MARKER="$HOST_DIR/.phase2-dependency"
+CONFIG_FILE="scripts/iree/iree.env"
+SOURCE_FILE="src/iree/tensor_add.mlir"
+HOST_DIR="build/iree/deps/iree-host"
+HOST_MARKER="$HOST_DIR/.iree-dependency"
 IREE_COMPILE="$HOST_DIR/bin/iree-compile"
 IREE_RUN_MODULE="$HOST_DIR/bin/iree-run-module"
-HOST_OUTPUT_DIR="build/phase2/host"
-SCALAR_OUTPUT_DIR="build/phase2/scalar"
+HOST_OUTPUT_DIR="build/iree/host"
+SCALAR_OUTPUT_DIR="build/iree/scalar"
 HOST_VMFB="$HOST_OUTPUT_DIR/tensor_add.vmfb"
 SCALAR_VMFB="$SCALAR_OUTPUT_DIR/tensor_add.vmfb"
 SCALAR_SIDECAR="$SCALAR_VMFB.sha256"
-MANIFEST_FILE="build/phase2/compile-manifest.txt"
+MANIFEST_FILE="build/iree/compile-manifest.txt"
 
 [[ -f "$CONFIG_FILE" ]] || die "missing configuration: $CONFIG_FILE"
-# shellcheck source=../config/iree.env
+# shellcheck source=iree.env
 . "$CONFIG_FILE"
 
 required_config_keys=(
@@ -69,11 +69,11 @@ done
 
 [[ -f "$SOURCE_FILE" ]] || die "missing tensor source: $SOURCE_FILE"
 [[ -f "$HOST_MARKER" ]] ||
-    die "missing prepared host marker: $HOST_MARKER; run ./phase2/scripts/prepare_iree.sh first"
+    die "missing prepared host marker: $HOST_MARKER; run ./scripts/iree/prepare_iree.sh first"
 [[ -x "$IREE_COMPILE" ]] ||
-    die "missing prepared executable: $IREE_COMPILE; run ./phase2/scripts/prepare_iree.sh first"
+    die "missing prepared executable: $IREE_COMPILE; run ./scripts/iree/prepare_iree.sh first"
 [[ -x "$IREE_RUN_MODULE" ]] ||
-    die "missing prepared executable: $IREE_RUN_MODULE; run ./phase2/scripts/prepare_iree.sh first"
+    die "missing prepared executable: $IREE_RUN_MODULE; run ./scripts/iree/prepare_iree.sh first"
 
 mapfile -t host_marker_lines < "$HOST_MARKER"
 if [[ "${#host_marker_lines[@]}" -ne 2 \
